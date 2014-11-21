@@ -1,18 +1,28 @@
 import sbt._
 import sbt.Keys._
+import sbtassembly.Plugin._
+import AssemblyKeys._
 import sbtbuildinfo.Plugin._
 import sbtrelease.ReleasePlugin._
 import scalariform.formatter.preferences._
 import com.typesafe.sbt.SbtScalariform._
 import scoverage.ScoverageSbtPlugin
-
+import net.virtualvoid.sbt.graph.Plugin._
 
 object DockerSpark extends Build {
 
   lazy val basicDependencies: Seq[Setting[_]] = Seq(
     libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.0.13",
     libraryDependencies += "com.typesafe" %% "scalalogging-slf4j" % "1.0.1",
-    libraryDependencies += "org.apache.spark" %% "spark-core" % "1.1.0",
+    libraryDependencies += "org.apache.spark" %% "spark-core" % "1.1.0" exclude("org.slf4j", "slf4j-log4j12")
+      exclude("org.eclipse.jetty.orbit", "javax.servlet")
+      exclude("org.eclipse.jetty.orbit", "javax.transaction")
+      exclude("org.eclipse.jetty.orbit", "javax.mail")
+      exclude("org.eclipse.jetty.orbit", "javax.activation")
+      exclude("commons-beanutils", "commons-beanutils-core")
+      exclude("commons-collections", "commons-collections")
+      exclude("commons-logging", "commons-logging")
+      exclude("com.esotericsoftware.minlog", "minlog"),
     libraryDependencies += "org.apache.spark" %% "spark-streaming" % "1.1.0",
     libraryDependencies += "org.apache.spark" %% "spark-streaming-kafka" % "1.1.0"
   )
@@ -61,7 +71,7 @@ object DockerSpark extends Build {
   lazy val waterfall = Project(
     id = "docker-spark",
     base = file("."),
-    settings = Project.defaultSettings ++ basicDependencies ++ releaseSettings ++ scalariformSettingsWithIt ++ itRunSettings ++ testDependencies ++ buildInfoSettings ++ Seq(
+    settings = Project.defaultSettings ++ basicDependencies ++ graphSettings ++ assemblySettings ++ releaseSettings ++ scalariformSettingsWithIt ++ itRunSettings ++ testDependencies ++ buildInfoSettings ++ Seq(
       name := "docker-spark",
       organization := "com.mindcandy.spark",
       scalaVersion := "2.10.4",
@@ -81,6 +91,20 @@ object DockerSpark extends Build {
       sourceGenerators in Compile <+= buildInfo,
       buildInfoKeys := Seq[BuildInfoKey](name, version),
       buildInfoPackage := "com.mindcandy.spark.info",
+      // assembly
+      assemblyOption in assembly ~= { _.copy(includeScala = false) },
+      jarName in assembly <<= (name, version) map ( (n, v) => s"$n-$v.jar" ),
+      mainClass in assembly := Option("com.mindcandy.spark.DockerMain"),
+      mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) => {
+        case PathList("javax", "servlet", xs @ _*)         => MergeStrategy.first
+        case PathList("javax", "transaction", xs @ _*)     => MergeStrategy.first
+        case PathList("javax", "mail", xs @ _*)     => MergeStrategy.first
+        case PathList("javax", "activation", xs @ _*)     => MergeStrategy.first
+        case PathList(ps @ _*) if ps.last endsWith ".html" => MergeStrategy.first
+        case "application.conf" => MergeStrategy.concat
+        case "unwanted.txt"     => MergeStrategy.discard
+        case x => old(x)
+      }},
       // forked JVM
       fork in run := true,
       fork in Test := true,
