@@ -8,6 +8,9 @@ import scalariform.formatter.preferences._
 import com.typesafe.sbt.SbtScalariform._
 import scoverage.ScoverageSbtPlugin
 import net.virtualvoid.sbt.graph.Plugin._
+import sbtdocker.Plugin._
+import sbtdocker.Plugin.DockerKeys._
+import sbtdocker.mutable.Dockerfile
 
 object DockerSpark extends Build {
 
@@ -71,7 +74,7 @@ object DockerSpark extends Build {
   lazy val waterfall = Project(
     id = "docker-spark",
     base = file("."),
-    settings = Project.defaultSettings ++ basicDependencies ++ graphSettings ++ assemblySettings ++ releaseSettings ++ scalariformSettingsWithIt ++ itRunSettings ++ testDependencies ++ buildInfoSettings ++ Seq(
+    settings = Project.defaultSettings ++ basicDependencies ++ graphSettings ++ assemblySettings ++ dockerSettings ++ releaseSettings ++ scalariformSettingsWithIt ++ itRunSettings ++ testDependencies ++ buildInfoSettings ++ Seq(
       name := "docker-spark",
       organization := "com.mindcandy.spark",
       scalaVersion := "2.10.4",
@@ -92,7 +95,6 @@ object DockerSpark extends Build {
       buildInfoKeys := Seq[BuildInfoKey](name, version),
       buildInfoPackage := "com.mindcandy.spark.info",
       // assembly
-      assemblyOption in assembly ~= { _.copy(includeScala = false) },
       jarName in assembly <<= (name, version) map ( (n, v) => s"$n-$v.jar" ),
       mainClass in assembly := Option("com.mindcandy.spark.DockerMain"),
       mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) => {
@@ -105,6 +107,17 @@ object DockerSpark extends Build {
         case "unwanted.txt"     => MergeStrategy.discard
         case x => old(x)
       }},
+      // docker
+      docker <<= (docker dependsOn assembly),
+      dockerfile in docker := {
+        val artifact = (outputPath in assembly).value
+        val artifactTargetPath = s"/app/${artifact.name}"
+        new Dockerfile {
+          from("dockerfile/java")
+          add(artifact, artifactTargetPath)
+          entryPoint("java", "-jar", artifactTargetPath)
+        }
+      },
       // forked JVM
       fork in run := true,
       fork in Test := true,
