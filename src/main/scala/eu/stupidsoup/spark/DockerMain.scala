@@ -1,4 +1,4 @@
-package com.mindcandy.spark
+package eu.stupidsoup.spark
 
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
@@ -8,7 +8,7 @@ object DockerMain {
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf().setAppName("Docker Spark").setMaster("local[*]")
     val sc = new SparkContext(conf)
-    val NUM_SAMPLES = 10
+    val NUM_SAMPLES = 100
     val count = sc.parallelize(1 to NUM_SAMPLES).map { i =>
       val x = Math.random()
       val y = Math.random()

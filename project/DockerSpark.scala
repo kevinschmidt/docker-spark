@@ -17,10 +17,11 @@ object DockerSpark extends Build {
   lazy val basicDependencies: Seq[Setting[_]] = Seq(
     libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.0.13",
     libraryDependencies += "com.typesafe" %% "scalalogging-slf4j" % "1.0.1",
-    libraryDependencies += "org.apache.spark" %% "spark-core" % "1.1.0" exclude("org.slf4j", "slf4j-log4j12")
-      exclude("org.eclipse.jetty.orbit", "javax.servlet")
+    libraryDependencies += "org.apache.spark" %% "spark-core" % "1.1.0"
+      exclude("org.slf4j", "slf4j-log4j12")
       exclude("org.eclipse.jetty.orbit", "javax.transaction")
       exclude("org.eclipse.jetty.orbit", "javax.mail")
+      exclude("org.eclipse.jetty.orbit", "javax.mail.glassfish")
       exclude("org.eclipse.jetty.orbit", "javax.activation")
       exclude("commons-beanutils", "commons-beanutils-core")
       exclude("commons-collections", "commons-collections")
@@ -76,27 +77,17 @@ object DockerSpark extends Build {
     base = file("."),
     settings = Project.defaultSettings ++ basicDependencies ++ graphSettings ++ assemblySettings ++ dockerSettings ++ releaseSettings ++ scalariformSettingsWithIt ++ itRunSettings ++ testDependencies ++ buildInfoSettings ++ Seq(
       name := "docker-spark",
-      organization := "com.mindcandy.spark",
+      organization := "eu.stupidsoup.spark",
       scalaVersion := "2.10.4",
       ScalariformKeys.preferences := formattingSettings,
-      publishTo <<= (version) { version: String =>
-        val repo = "http://artifactory.tool.mindcandy.com/artifactory/"
-        val revisionProperty = if (!vcsNumber.isEmpty) ";revision=" + vcsNumber else ""
-        val timestampProperty = ";build.timestamp=" + new java.util.Date().getTime
-        val props = timestampProperty + revisionProperty
-        if (version.trim.endsWith("SNAPSHOT"))
-          Some("snapshots" at repo + "libs-snapshot-local" + props)
-        else
-          Some("releases" at repo + "libs-release-local" + props)
-      },
       ScoverageSbtPlugin.ScoverageKeys.highlighting := true,
       // build info
       sourceGenerators in Compile <+= buildInfo,
       buildInfoKeys := Seq[BuildInfoKey](name, version),
-      buildInfoPackage := "com.mindcandy.spark.info",
+      buildInfoPackage := "eu.stupidsoup.spark.info",
       // assembly
       jarName in assembly <<= (name, version) map ( (n, v) => s"$n-$v.jar" ),
-      mainClass in assembly := Option("com.mindcandy.spark.DockerMain"),
+      mainClass in assembly := Option("eu.stupidsoup.spark.DockerMain"),
       mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) => {
         case PathList("javax", "servlet", xs @ _*)         => MergeStrategy.first
         case PathList("javax", "transaction", xs @ _*)     => MergeStrategy.first
