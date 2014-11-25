@@ -11,6 +11,7 @@ import net.virtualvoid.sbt.graph.Plugin._
 import sbtdocker.Plugin._
 import sbtdocker.Plugin.DockerKeys._
 import sbtdocker.mutable.Dockerfile
+import sbtdocker.ImageName
 
 object DockerSpark extends Build {
 
@@ -100,6 +101,13 @@ object DockerSpark extends Build {
       }},
       // docker
       docker <<= (docker dependsOn assembly),
+      imageName in docker := {
+        ImageName(
+          namespace = Some(organization.value),
+          repository = name.value,
+          tag = Some("v" + version.value)
+        )
+      },
       dockerfile in docker := {
         val artifact = (outputPath in assembly).value
         val artifactTargetPath = s"/app/${artifact.name}"
@@ -121,4 +129,3 @@ object DockerSpark extends Build {
    .settings( ScoverageSbtPlugin.instrumentSettings ++ Defaults.itSettings ++ Seq(unmanagedSourceDirectories in IntegrationTest <++= { baseDirectory { base => { Seq( base / "src/test/scala" )}}}) : _*)
 
 }
-
